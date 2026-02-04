@@ -1,26 +1,31 @@
 from . import dice_roller, parser, statistics
 
-
+# TODO: must adhere selector
+# TODO: must be randomized internally, selected what is displayed
+# TODO: change sum logic: +-> sum all, +1 -> do not sum, add to result
+# TODO: ++1 -> sum all, add +1
 def roll(message: str) -> str:
     try:
-        sets_to_roll = parser.parse_roll(message.lower())
-        result = ""
-        for s in sets_to_roll:
-            result += "  "
-            rolls = []
-            for _ in range(s.count):
-                rolls.append(dice_roller.roll_dice(s.dice_type))
-            result += "[ **" + "  ".join([str(i) for i in rolls]) + "** ]"
-            if s.modifier is not None:
-                sum_of_rolls = sum(rolls)
-                if s.modifier > 0:
-                    result += "+" + str(s.modifier)
-                elif s.modifier < 0:
-                    result += str(s.modifier)
-                result += "=**" + str(sum_of_rolls + s.modifier) + "**"
-        return result.lstrip().rstrip()
+        out = ""
+        parsed = parser.parse_roll(message.lower())
+        out += "  "
+        rolls = []
+        for _ in range(parsed.count):
+            rolls.append(dice_roller.roll_dice(parsed.dice_type))
+
+        out += "[ **" + "  ".join([str(i) for i in rolls]) + "** ]"
+        if parsed.modifier is not None:
+            print("parsed.modifier: ", parsed.modifier)
+
+            sum_rolls = sum(rolls)
+            if parsed.modifier > 0:
+                out += "+" + str(parsed.modifier)
+            elif parsed.modifier < 0:
+                out += str(parsed.modifier)
+            out += "=**" + str(sum_rolls + parsed.modifier) + "**"
+        return out.lstrip().rstrip()
     except ValueError:
-        return "You shall not pass! Ask for *!help* if you fear my power!"
+        return "That did not work. Ask for *!help*"
 
 
 def stats(message: str) -> str:
@@ -47,4 +52,4 @@ def stats(message: str) -> str:
             ),
         )
     except ValueError:
-        return "You shall not pass! Ask for *!help* if you fear my power!"
+        return "That did not work. Ask for *!help*"
