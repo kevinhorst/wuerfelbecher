@@ -28,3 +28,4 @@ multidict==6.0.4
     #   yarl
 yarl==1.9.2
     # via aiohttp
+lark==1.3.1
