@@ -3,18 +3,18 @@ from collections import namedtuple
 from pprint import pprint
 from lark import Lark, Transformer, v_args
 
-SetToRoll = namedtuple("SetToRoll", ["count", "dice_type", "modifier", "selected"])
+SetToRoll = namedtuple("SetToRoll", ["count", "dice_type",  "selector", "modifier", "modifier_number", "actions"])
 
 grammar = """
     start: roll+
-    roll: count dice sides [modifier] [modifier_number] [selector]
+    roll: count dice sides [selector] [modifier] [modifier_number]
 
     count: INT
     dice: "d"
     sides: INT
+    selector: "(" INT ")"
     modifier: SIGN
     modifier_number: INT
-    selector: "(" INT ")"
 
     INT: /[1-9][0-9]*/
     SIGN: "+" | "-"
@@ -57,25 +57,81 @@ class DiceRollTransformer(Transformer):
         return value
 
     # Don't use inline here - get children as a list, makes getting the optional params cleaner
+    #TODO: needs STATE for different cases
     def to_rollingset(self, children):
-        print(children)
+
         count = children[0]
         # children[1] is dice ("d"), we skip it
         sides = children[2]
 
         # Extract optionals
+        selector = None
         modifier = None
         modifier_number = None
-        selector = None
-
-        for child in children[3:]:
+        actions = []
+        print("len(children)", len(children))
+        print(children)
+        # one optional, may be
+        # (1) modifier = ["+ | "-"] (ACTION_SUM),
+        # (2) selector = "(INT)"(ACTION_SELECT)
+        if len(children) == 4:
+            child = children[3]
+            # 1
             if isinstance(child, str) and child in ['+', '-']:
                 modifier = child
+                actions.append('ACTION_SUM')
+            # 2
             elif isinstance(child, int):
-                if modifier is not None and modifier_number is None:
-                    modifier_number = child
+                selector = child
+                actions.append('ACTION_SELECT')
+
+        # two optionals, may be
+        #(1) modifier+number (ACTION_SUM + ACTION_ADD or ACTION_SUB),
+        #(2) modifier+selector (ACTION_SUM + ACTION_ADD or ACTION_SUB),
+        #(3) selector+modifier(ACTION_SELECT),
+        if len(children) == 5:
+            first = children[3]
+            second = children[4]
+            # 1, 2
+            if isinstance(first, str) and first in ['+', '-'] and isinstance(second, int):
+                modifier = first
+                actions.append('ACTION_SUM')
+                if modifier == '+':
+                    actions.append('ACTION_ADD')
                 else:
-                    selector = child
+                    actions.append('ACTION_SUB')
+                modifier_number = second
+            # 3
+            if isinstance(first, int) and second in ['+', '-'] and isinstance(second, str):
+                selector = first
+                actions.append('ACTION_SELECT')
+
+        # three optionals, may be
+        # (1) modifier+number+selector (ACTION_SUM + ACTION_ADD or ACTION_SUB)
+        # (2) selector+modifier+number (ACTION_SELECT + ACTION_ADD or ACTION_SUB)
+        if len(children) == 6:
+            first = children[3]
+            second = children[4]
+            third = children[5]
+            # 1
+            if isinstance(first, str) and first in ['+', '-'] and isinstance(second, int):
+                modifier = first
+                actions.append('ACTION_SUM')
+                if modifier == '+':
+                    actions.append('ACTION_ADD')
+                else:
+                    actions.append('ACTION_SUB')
+                modifier_number = second
+            # 2
+            if isinstance(first, int) and second in ['+', '-'] and isinstance(second, str) and isinstance(third, int):
+                selector = first
+                actions.append('ACTION_SELECT')
+                modifier = second
+                if modifier == '+':
+                    actions.append('ACTION_ADD')
+                else:
+                    actions.append('ACTION_SUB')
+                modifier_number = third
 
         # Calculate final modifier
         final_modifier = None
