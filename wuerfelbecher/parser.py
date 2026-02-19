@@ -3,7 +3,11 @@ from collections import namedtuple
 from pprint import pprint
 from lark import Lark, Transformer, v_args
 
-SetToRoll = namedtuple("SetToRoll", ["count", "dice_type",  "selector", "modifier", "modifier_number", "actions"])
+SetToRoll = namedtuple("SetToRoll", ["count", "dice_type",  "selector", "modifier_number", "actions"])
+
+ACTION_SELECT = "select"
+ACTION_SUM = "sum"
+ACTION_ADD = "add"
 
 grammar = """
     start: roll+
@@ -59,91 +63,27 @@ class DiceRollTransformer(Transformer):
     # Don't use inline here - get children as a list, makes getting the optional params cleaner
     #TODO: needs STATE for different cases
     def to_rollingset(self, children):
-
         count = children[0]
-        # children[1] is dice ("d"), we skip it
+        # children[1] is "d", skip
         sides = children[2]
+        selector = children[3]  # int or None
+        modifier = children[4]  # "+" | "-" or None
+        modifier_number = children[5]  # int or None
 
-        # Extract optionals
-        selector = None
-        modifier = None
-        modifier_number = None
         actions = []
-        print("len(children)", len(children))
-        print(children)
-        # one optional, may be
-        # (1) modifier = ["+ | "-"] (ACTION_SUM),
-        # (2) selector = "(INT)"(ACTION_SELECT)
-        if len(children) == 4:
-            child = children[3]
-            # 1
-            if isinstance(child, str) and child in ['+', '-']:
-                modifier = child
-                actions.append('ACTION_SUM')
-            # 2
-            elif isinstance(child, int):
-                selector = child
-                actions.append('ACTION_SELECT')
 
-        # two optionals, may be
-        #(1) modifier+number (ACTION_SUM + ACTION_ADD or ACTION_SUB),
-        #(2) modifier+selector (ACTION_SUM + ACTION_ADD or ACTION_SUB),
-        #(3) selector+modifier(ACTION_SELECT),
-        if len(children) == 5:
-            first = children[3]
-            second = children[4]
-            # 1, 2
-            if isinstance(first, str) and first in ['+', '-'] and isinstance(second, int):
-                modifier = first
-                actions.append('ACTION_SUM')
-                if modifier == '+':
-                    actions.append('ACTION_ADD')
-                else:
-                    actions.append('ACTION_SUB')
-                modifier_number = second
-            # 3
-            if isinstance(first, int) and second in ['+', '-'] and isinstance(second, str):
-                selector = first
-                actions.append('ACTION_SELECT')
+        if selector is not None:
+            actions.append(ACTION_SELECT)
+            selector = count if selector > count else selector
 
-        # three optionals, may be
-        # (1) modifier+number+selector (ACTION_SUM + ACTION_ADD or ACTION_SUB)
-        # (2) selector+modifier+number (ACTION_SELECT + ACTION_ADD or ACTION_SUB)
-        if len(children) == 6:
-            first = children[3]
-            second = children[4]
-            third = children[5]
-            # 1
-            if isinstance(first, str) and first in ['+', '-'] and isinstance(second, int):
-                modifier = first
-                actions.append('ACTION_SUM')
-                if modifier == '+':
-                    actions.append('ACTION_ADD')
-                else:
-                    actions.append('ACTION_SUB')
-                modifier_number = second
-            # 2
-            if isinstance(first, int) and second in ['+', '-'] and isinstance(second, str) and isinstance(third, int):
-                selector = first
-                actions.append('ACTION_SELECT')
-                modifier = second
-                if modifier == '+':
-                    actions.append('ACTION_ADD')
-                else:
-                    actions.append('ACTION_SUB')
-                modifier_number = third
+        if modifier is not None:
+            actions.append(ACTION_SUM)
 
-        # Calculate final modifier
-        final_modifier = None
-        if modifier and modifier_number is not None:
-            final_modifier = modifier_number if modifier == "+" else -modifier_number
+            if modifier_number is not None:
+                modifier_number = modifier_number if modifier == '+' else -modifier_number
+                actions.append(ACTION_ADD)
 
-        selected = selector if selector is not None else 1
-
-        if selected > count:
-            selected = count
-
-        return SetToRoll(count, sides, final_modifier, selected)
+        return SetToRoll(count, sides, selector, modifier_number, actions)
 
     def start(self, children):
         return children[0]
