@@ -1,31 +1,65 @@
-from . import dice_roller, parser, statistics
+import random
 
-# TODO: must adhere selector
-# TODO: must be randomized internally, selected what is displayed
-# TODO: change sum logic: +-> sum all, +1 -> do not sum, add to result
-# TODO: ++1 -> sum all, add +1
+from lark import  UnexpectedToken
+
+from . import dice_roller, parser, statistics
+from .parser import ACTION_SELECT, ACTION_SUM, ACTION_ADD
+
+
 def roll(message: str) -> str:
     try:
-        out = ""
         parsed = parser.parse_roll(message.lower())
-        out += "  "
+
         rolls = []
         for _ in range(parsed.count):
             rolls.append(dice_roller.roll_dice(parsed.dice_type))
 
-        out += "[ **" + "  ".join([str(i) for i in rolls]) + "** ]"
-        if parsed.modifier is not None:
-            print("parsed.modifier: ", parsed.modifier)
+        help_text = ""
+        if len(parsed.actions) > 0:
+            help_text = "*Rolled* : "
+            help_text += "[ **" + "  ".join([str(i) for i in rolls]) + "** ]" + "\n"
 
-            sum_rolls = sum(rolls)
-            if parsed.modifier > 0:
-                out += "+" + str(parsed.modifier)
-            elif parsed.modifier < 0:
-                out += str(parsed.modifier)
-            out += "=**" + str(sum_rolls + parsed.modifier) + "**"
-        return out.lstrip().rstrip()
+        modified = rolls
+        if ACTION_SELECT in  parsed.actions:
+            print("ACTION SELECT")
+            print(modified)
+            random.shuffle(modified)
+            print("Shuffled:")
+            print(modified)
+
+            print("selected")
+            modified = [modified[parsed.selector-1]]
+            print(modified)
+            help_text += "*Selected dice* : " + "**" +str(parsed.selector) + "**" + "\n"
+
+        if ACTION_SUM in parsed.actions:
+            print("ACTION SUM")
+            print(modified)
+
+            modified = [sum(modified)]
+            print("summed")
+            print(modified)
+            help_text += "*Summed all rolls*: **yes**"  + "\n"
+
+        if ACTION_ADD in parsed.actions:
+            print("ACTION ADD")
+            print(modified)
+            modified = list(map(lambda r: r + parsed.modifier_number, modified))
+            print("Added:")
+            print(modified)
+            help_text += "*Added to result* : " + "**" + str(parsed.modifier_number) + "**" + "\n"
+
+        print_help = True
+        out = "*Result*: [ **" + "  ".join([str(i) for i in modified]) + "** ]"
+
+        if print_help:
+            out = help_text + out
+
+        return out.strip()
     except ValueError:
         return "That did not work. Ask for *!help*"
+    except UnexpectedToken:
+        return "Failed to parse dice roll. Wrong format. Ask for *!help*"
 
 
 def stats(message: str) -> str:
