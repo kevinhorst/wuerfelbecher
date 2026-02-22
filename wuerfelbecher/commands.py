@@ -1,6 +1,6 @@
 import random
 
-from lark import  UnexpectedToken
+from lark import UnexpectedToken, UnexpectedCharacters
 
 from . import dice_roller, parser, statistics
 from .parser import ACTION_SELECT, ACTION_SUM, ACTION_ADD
@@ -21,32 +21,17 @@ def roll(message: str) -> str:
 
         modified = rolls
         if ACTION_SELECT in  parsed.actions:
-            print("ACTION SELECT")
-            print(modified)
             random.shuffle(modified)
-            print("Shuffled:")
-            print(modified)
 
-            print("selected")
             modified = [modified[parsed.selector-1]]
-            print(modified)
             help_text += "*Selected dice* : " + "**" +str(parsed.selector) + "**" + "\n"
 
         if ACTION_SUM in parsed.actions:
-            print("ACTION SUM")
-            print(modified)
-
             modified = [sum(modified)]
-            print("summed")
-            print(modified)
             help_text += "*Summed all rolls*: **yes**"  + "\n"
 
         if ACTION_ADD in parsed.actions:
-            print("ACTION ADD")
-            print(modified)
             modified = list(map(lambda r: r + parsed.modifier_number, modified))
-            print("Added:")
-            print(modified)
             help_text += "*Added to result* : " + "**" + str(parsed.modifier_number) + "**" + "\n"
 
         print_help = True
@@ -58,7 +43,7 @@ def roll(message: str) -> str:
         return out.strip()
     except ValueError:
         return "That did not work. Ask for *!help*"
-    except UnexpectedToken:
+    except (UnexpectedToken, UnexpectedCharacters):
         return "Failed to parse dice roll. Wrong format. Ask for *!help*"
 
 
