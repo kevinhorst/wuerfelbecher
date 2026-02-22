@@ -18,9 +18,10 @@ grammar = """
     sides: INT
     selector: "(" INT ")"
     modifier: SIGN
-    modifier_number: INT
+    modifier_number: INT | ZERO
 
     INT: /[1-9][0-9]*/
+    ZERO: /[0]/
     SIGN: "+" | "-"
 
     %import common.WS
@@ -31,6 +32,10 @@ grammar = """
 class DiceRollTransformer(Transformer):
     @v_args(inline=True)
     def INT(self, token):
+        return int(token)
+
+    @v_args(inline=True)
+    def ZERO(self, token):
         return int(token)
 
     @v_args(inline=True)
@@ -60,8 +65,6 @@ class DiceRollTransformer(Transformer):
     def selector(self, value):
         return value
 
-    # Don't use inline here - get children as a list, makes getting the optional params cleaner
-    #TODO: needs STATE for different cases
     def to_rollingset(self, children):
         count = children[0]
         # children[1] is "d", skip
